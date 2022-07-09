@@ -27,7 +27,7 @@ def create_app(test_config=None):
         return response
 
 
-    #GET requests for all available categories.
+    # endpoint to GET requests for all available categories.
     @app.route('/categories', methods = ['GET'])
     def get_categories():
         categories = Category.query.order_by(Category.id).all()
@@ -159,31 +159,79 @@ def create_app(test_config=None):
             abort(404)
         current_questions = paginate_questions(request,selection)
 
-        return jsonify(
-            {
+        return jsonify({
                 "success": True,
                 "questions": current_questions,
                 "total_questions": len(current_questions),
                 "category": category_id
-            }
-        )
-    """
-    @TODO:
-    Create a POST endpoint to get questions to play the quiz.
-    This endpoint should take category and previous question parameters
-    and return a random questions within the given category,
-    if provided, and that is not one of the previous questions.
+            })
 
-    TEST: In the "Play" tab, after a user selects "All" or a category,
-    one question at a time is displayed, the user is allowed to answer
-    and shown whether they were correct or not.
-    """
 
-    """
-    @TODO:
-    Create error handlers for all expected errors
-    including 404 and 422.
-    """
+    # endpoint to get questions to play the quiz.
+    @app.route('/gameplay',methods=["POST"])
+    def play():
+        previous_questions = request.json.get('previous_questions', [])
+        quiz_category = request.json.get('quiz_category', None)
+
+        if (quiz_category is None) or (previous_questions is None):
+            abort(400)
+        elif (quiz_category['id'] == 0):
+            questions = Question.query.all()
+        else:
+            questions = Question.query.filter_by(
+                category=quiz_category['id']).all()
+
+        total_questions = len(questions)
+
+        def random_question():
+            return questions[random.randrange(0, total_questions, 1)]
+
+        def check_if_used(question):
+            used = False
+            for question_ in previous_questions:
+                if (question_ == question.id):
+                    used = True
+            return used
+
+        question = random_question()
+
+        while (check_if_used(question)):
+            question = random_question()
+            if (len(previous_questions) == total_questions):
+                return jsonify({
+                    'success': True
+                })
+
+        return jsonify({
+            'success': True,
+            'question': question.format()
+        })
+
+
+    # error handlers for all expected errors
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            "success": False,
+            "error": 404, 
+            "message": "resource not found"
+            }), 404
+
+    @app.errorhandler(422)
+    def unprocessable(error):
+        return jsonify({
+            "success": False, 
+            "error": 422, 
+            "message": "unprocessable"
+            }), 422
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({
+            "success": False, 
+            "error": 400, 
+            "message": "bad request"
+            }), 400
+
 
     return app
-
