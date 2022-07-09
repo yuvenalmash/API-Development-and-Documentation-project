@@ -164,31 +164,38 @@ def create_app(test_config=None):
     only question that include that string within their question.
     Try using the word "title" to start.
     """
-    @app.route('/questions',methods=["POST"])
+    @app.route('/questions/search',methods=["POST"])
     def search_question():
-        body = request.get_json()
-        if body.get("searchTerm", None):
-                # get the search term from the body
-                search_term = body["searchTerm"].strip()
-                # get questions that match the search term and return them
-                selection = Question.query.filter(
-                    Question.question.ilike(f"%{search_term}%")).all()
-                current_questions = paginate_questions(request, selection)
+        search_term = request.json.get('searchTerm')
+        selection = Question.query.filter(
+            Question.question.ilike(f"%{search_term}%")).all()
+        if len(selection) == 0:
+            abort(404)
+        current_questions = paginate_questions(request, selection)
+
         return jsonify({
                     "success": True,
-                    #"questions": [q.format() for q in resault]
-                    "questions": current_questions
+                    "questions": current_questions,
+                    "total_questions": len(current_questions),
                 })
 
-    """
-    @TODO:
-    Create a GET endpoint to get questions based on category.
+    # endpoint to get questions based on category.
+    @app.route('/categories/<int:category_id>/questions',methods=["GET"])
+    def get_questions_by_category(category_id):
+        selection = Question.query.filter(
+            Question.category == category_id).all()
+        if len(selection) == 0:
+            abort(404)
+        current_questions = paginate_questions(request,selection)
 
-    TEST: In the "List" tab / main screen, clicking on one of the
-    categories in the left column will cause only questions of that
-    category to be shown.
-    """
-
+        return jsonify(
+            {
+                "success": True,
+                "questions": current_questions,
+                "total_questions": len(current_questions),
+                "category": category_id
+            }
+        )
     """
     @TODO:
     Create a POST endpoint to get questions to play the quiz.
