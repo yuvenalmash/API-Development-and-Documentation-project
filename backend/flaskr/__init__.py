@@ -173,39 +173,32 @@ def create_app(test_config=None):
         previous_questions = request.json.get('previous_questions', [])
         quiz_category = request.json.get('quiz_category', None)
 
-        if (quiz_category is None) or (previous_questions is None):
-            abort(400)
-        elif (quiz_category['id'] == 0):
+        if quiz_category:
+            category_id = quiz_category.get('id')
+        else:
+            abort(404)
+
+        if category_id == 0:
             questions = Question.query.all()
         else:
             questions = Question.query.filter_by(
-                category=quiz_category['id']).all()
+                category=category_id).all()
 
         total_questions = len(questions)
-
-        def random_question():
-            return questions[random.randrange(0, total_questions, 1)]
-
-        def check_if_used(question):
-            used = False
-            for question_ in previous_questions:
-                if (question_ == question.id):
-                    used = True
-            return used
-
-        question = random_question()
-
-        while (check_if_used(question)):
-            question = random_question()
-            if (len(previous_questions) == total_questions):
-                return jsonify({
-                    'success': True
-                })
+        if total_questions == len(previous_questions):
+            return jsonify({
+                "success": True
+            })
+        
+        random_question = (random.choice(questions)).format()
+        while random_question.get('id') in previous_questions:
+            random_question = (random.choice(questions)).format()
 
         return jsonify({
-            'success': True,
-            'question': question.format()
-        })
+            "success": True,
+            "question": random_question,
+            "category": quiz_category
+            })
 
 
     # error handlers for all expected errors
